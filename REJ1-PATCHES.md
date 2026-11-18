@@ -9,6 +9,8 @@ Branch `rej1` = an upstream release tag + the commits below. Nothing else is cha
    user has not started or finished (`getDiscoverLibraryItems` in `libraryItemsPodcastFilters.js`).
 3. **No update notifier** – removed the version/"Update" footer from the left sidebar (the button list now runs to the bottom of the screen) and the orange "Latest: x" link in Settings. The version number is still shown in Settings.
 
+4. **Per-feed episode title filter** – `server/managers/PodcastManager.js` (`filterEpisodesByRej1TitlePattern`). If `<config>/podcast-episode-filters.json` has an entry for a podcast's feed URL, auto download and "Check & Download New Episodes" only fetch episodes whose title matches its `include` regex (case-insensitive). No file or no entry means no filtering. Example: `{"<feedURL>": {"include": "^\\s*(?:jocko podcast\\s*)?#?\\d{1,3}\\s*[:.\\-–—]"}}` keeps only numbered Jocko Podcast episodes. The file is read on every check, so edits apply without a restart.
+
 ## Updating to a new upstream release
 `rej1` is the default branch and carries our commits on top of upstream. To take a new release:
 
