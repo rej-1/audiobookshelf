@@ -3,6 +3,7 @@ const { getTitlePrefixAtEnd, getTitleIgnorePrefix } = require('../utils')
 const Logger = require('../Logger')
 const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 const htmlSanitizer = require('../utils/htmlSanitizer')
+const { normalizeEpisodeTitlePattern } = require('../utils/podcastUtils')
 
 /**
  * @typedef PodcastExpandedProperties
@@ -53,6 +54,10 @@ class Podcast extends Model {
     this.maxEpisodesToKeep
     /** @type {number} */
     this.maxNewEpisodesToDownload
+    /** @type {string} REJ1: only auto download episodes whose title matches this regex (case-insensitive) */
+    this.episodeIncludePattern
+    /** @type {string} REJ1: skip episodes whose title matches this regex (case-insensitive) */
+    this.episodeExcludePattern
     /** @type {string} */
     this.coverPath
     /** @type {string[]} */
@@ -113,6 +118,8 @@ class Podcast extends Model {
         lastEpisodeCheck: new Date(),
         maxEpisodesToKeep: 0,
         maxNewEpisodesToDownload: 3,
+        episodeIncludePattern: normalizeEpisodeTitlePattern(payload.episodeIncludePattern),
+        episodeExcludePattern: normalizeEpisodeTitlePattern(payload.episodeExcludePattern),
         tags,
         genres
       },
@@ -151,6 +158,8 @@ class Podcast extends Model {
         lastEpisodeCheck: DataTypes.DATE,
         maxEpisodesToKeep: DataTypes.INTEGER,
         maxNewEpisodesToDownload: DataTypes.INTEGER,
+        episodeIncludePattern: DataTypes.TEXT,
+        episodeExcludePattern: DataTypes.TEXT,
         coverPath: DataTypes.STRING,
         tags: DataTypes.JSON,
         genres: DataTypes.JSON,
@@ -281,6 +290,20 @@ class Podcast extends Model {
     if (typeof payload.lastEpisodeCheck === 'number' && payload.lastEpisodeCheck !== this.lastEpisodeCheck?.valueOf()) {
       this.lastEpisodeCheck = payload.lastEpisodeCheck
       hasUpdates = true
+    }
+
+    // REJ1: episode title filters ('' clears; invalid or too long patterns are ignored)
+    for (const key of ['episodeIncludePattern', 'episodeExcludePattern']) {
+      if (typeof payload[key] !== 'string') continue
+      const newValue = payload[key].trim() === '' ? null : normalizeEpisodeTitlePattern(payload[key])
+      if (payload[key].trim() !== '' && newValue === null) {
+        Logger.warn(`[Podcast] Ignoring invalid ${key} for "${this.title}"`)
+        continue
+      }
+      if (newValue !== (this[key] || null)) {
+        this[key] = newValue
+        hasUpdates = true
+      }
     }
 
     const numberKeys = ['maxEpisodesToKeep', 'maxNewEpisodesToDownload']
@@ -447,7 +470,9 @@ class Podcast extends Model {
       autoDownloadSchedule: this.autoDownloadSchedule,
       lastEpisodeCheck: this.lastEpisodeCheck?.valueOf() || null,
       maxEpisodesToKeep: this.maxEpisodesToKeep,
-      maxNewEpisodesToDownload: this.maxNewEpisodesToDownload
+      maxNewEpisodesToDownload: this.maxNewEpisodesToDownload,
+      episodeIncludePattern: this.episodeIncludePattern || null,
+      episodeExcludePattern: this.episodeExcludePattern || null
     }
   }
 
@@ -469,6 +494,8 @@ class Podcast extends Model {
       lastEpisodeCheck: this.lastEpisodeCheck?.valueOf() || null,
       maxEpisodesToKeep: this.maxEpisodesToKeep,
       maxNewEpisodesToDownload: this.maxNewEpisodesToDownload,
+      episodeIncludePattern: this.episodeIncludePattern || null,
+      episodeExcludePattern: this.episodeExcludePattern || null,
       size: this.size
     }
   }

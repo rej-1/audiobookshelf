@@ -6,7 +6,7 @@ const Watcher = require('../Watcher')
 
 const fs = require('../libs/fsExtra')
 
-const { getPodcastFeed } = require('../utils/podcastUtils')
+const { getPodcastFeed, filterEpisodesByTitlePatterns } = require('../utils/podcastUtils')
 const { removeFile, downloadFile, sanitizeFilename, filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
 const { levenshteinDistance } = require('../utils/index')
 const opmlParser = require('../utils/parsers/parseOPML')
@@ -21,27 +21,6 @@ const NotificationManager = require('../managers/NotificationManager')
 const LibraryFile = require('../objects/files/LibraryFile')
 const PodcastEpisodeDownload = require('../objects/PodcastEpisodeDownload')
 const AudioFile = require('../objects/files/AudioFile')
-
-/**
- * REJ1 patch: per-feed episode title filter.
- * Reads <config>/podcast-episode-filters.json: { "<feedURL>": { "include": "<regex, case-insensitive>" } }
- * Only episodes whose title matches `include` are auto-downloaded. No file / no entry = no filtering.
- */
-function filterEpisodesByRej1TitlePattern(feedURL, episodes) {
-  try {
-    const filterPath = Path.join(global.ConfigPath, 'podcast-episode-filters.json')
-    if (!feedURL || !fs.pathExistsSync(filterPath)) return episodes
-    const rule = JSON.parse(fs.readFileSync(filterPath, 'utf8'))[feedURL]
-    if (!rule?.include) return episodes
-    const re = new RegExp(rule.include, 'i')
-    const kept = episodes.filter((ep) => re.test(ep.title || ''))
-    if (kept.length !== episodes.length) Logger.info(`[PodcastManager] Title filter kept ${kept.length} of ${episodes.length} new episodes`)
-    return kept
-  } catch (error) {
-    Logger.error('[PodcastManager] Failed to apply podcast-episode-filters.json; not filtering', error)
-    return episodes
-  }
-}
 
 class PodcastManager {
   constructor() {
@@ -422,8 +401,10 @@ class PodcastManager {
     // Filter new and not already has
     let newEpisodes = feed.episodes.filter((ep) => ep.publishedAt > dateToCheckForEpisodesAfter && !podcastLibraryItem.media.checkHasEpisodeByFeedEpisode(ep))
 
-    // REJ1 patch: optional per-feed title filter so auto download skips clips/bonus items (see REJ1-PATCHES.md)
-    newEpisodes = filterEpisodesByRej1TitlePattern(podcastLibraryItem.media.feedURL, newEpisodes)
+    // REJ1 patch: per-podcast include/exclude title filters so downloads can skip clips/bonus items (see REJ1-PATCHES.md)
+    const numBeforeTitleFilter = newEpisodes.length
+    newEpisodes = filterEpisodesByTitlePatterns(podcastLibraryItem.media, newEpisodes)
+    if (newEpisodes.length !== numBeforeTitleFilter) Logger.info(`[PodcastManager] Title filters kept ${newEpisodes.length} of ${numBeforeTitleFilter} new episodes for \"${podcastLibraryItem.media.title}\"`)
 
     if (maxNewEpisodes > 0) {
       newEpisodes = newEpisodes.slice(0, maxNewEpisodes)

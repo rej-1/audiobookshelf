@@ -193,6 +193,7 @@ class Database {
     }
 
     await this.buildModels(force)
+    await this.ensureRej1Columns()
     Logger.info(`[Database] Db initialized with models:`, Object.keys(this.sequelize.models).join(', '))
 
     await this.addTriggers()
@@ -304,6 +305,23 @@ class Database {
   async disconnect() {
     Logger.info(`[Database] Disconnecting sqlite db`)
     await this.sequelize.close()
+  }
+
+  /**
+   * REJ1 patch: add fork-only columns to existing tables. Idempotent and version independent (sequelize.sync does not
+   * alter existing tables, and fork columns must not depend on the upstream migration version ordering).
+   */
+  async ensureRej1Columns() {
+    const queryInterface = this.sequelize.getQueryInterface()
+    const columns = { podcasts: ['episodeIncludePattern', 'episodeExcludePattern'] }
+    for (const [table, names] of Object.entries(columns)) {
+      const description = await queryInterface.describeTable(table)
+      for (const name of names) {
+        if (description[name]) continue
+        Logger.info(`[Database] Adding fork column ${table}.${name}`)
+        await queryInterface.addColumn(table, name, { type: Sequelize.DataTypes.TEXT, allowNull: true })
+      }
+    }
   }
 
   /**

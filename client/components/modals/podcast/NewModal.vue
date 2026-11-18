@@ -28,6 +28,9 @@
             <ui-multi-select v-model="podcast.genres" :items="podcast.genres" :label="$strings.LabelGenres" />
           </div>
         </div>
+        <div class="p-2">
+          <widgets-podcast-episode-filter :include.sync="podcast.episodeIncludePattern" :exclude.sync="podcast.episodeExcludePattern" :feed-titles="feedEpisodeTitles" />
+        </div>
         <div class="flex flex-wrap">
           <div class="md:w-1/4 p-2">
             <ui-dropdown :label="$strings.LabelPodcastType" v-model="podcast.type" :items="podcastTypes" small />
@@ -94,6 +97,8 @@ export default {
         itunesId: '',
         itunesArtistId: '',
         autoDownloadEpisodes: false,
+        episodeIncludePattern: '',
+        episodeExcludePattern: '',
         language: '',
         explicit: false,
         type: ''
@@ -121,6 +126,10 @@ export default {
     },
     title() {
       return this._podcastData.title
+    },
+    feedEpisodeTitles() {
+      const episodes = this.podcastFeedData?.episodes
+      return Array.isArray(episodes) ? episodes.map((e) => e.title || '') : null
     },
     currentLibrary() {
       return this.$store.getters['libraries/getCurrentLibrary']
@@ -176,6 +185,15 @@ export default {
       this.fullPath = Path.join(this.selectedFolderPath, this.$sanitizeFilename(this.podcast.title))
     },
     submit() {
+      const invalid = [this.podcast.episodeIncludePattern, this.podcast.episodeExcludePattern].some((p) => {
+        try {
+          if (p && p.trim()) new RegExp(p.trim(), 'i')
+          return false
+        } catch (error) {
+          return true
+        }
+      })
+      if (invalid) return this.$toast.error(this.$strings.LabelEpisodeFilterInvalid)
       const podcastPayload = {
         path: this.fullPath,
         folderId: this.selectedFolderId,
@@ -196,7 +214,9 @@ export default {
             explicit: this.podcast.explicit,
             type: this.podcast.type
           },
-          autoDownloadEpisodes: this.podcast.autoDownloadEpisodes
+          autoDownloadEpisodes: this.podcast.autoDownloadEpisodes,
+          episodeIncludePattern: this.podcast.episodeIncludePattern,
+          episodeExcludePattern: this.podcast.episodeExcludePattern
         }
       }
       console.log('Podcast payload', podcastPayload)
@@ -231,6 +251,8 @@ export default {
       this.podcast.itunesArtistId = this._podcastData.artistId || ''
       this.podcast.language = this._podcastData.language || this.feedMetadata.language || ''
       this.podcast.autoDownloadEpisodes = false
+      this.podcast.episodeIncludePattern = ''
+      this.podcast.episodeExcludePattern = ''
       this.podcast.type = this._podcastData.type || this.feedMetadata.type || 'episodic'
 
       this.podcast.explicit = this._podcastData.explicit || this.feedMetadata.explicit === 'yes' || this.feedMetadata.explicit == 'true'

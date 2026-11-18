@@ -30,6 +30,10 @@
         </div>
 
         <widgets-cron-expression-builder ref="cronExpressionBuilder" v-if="enableAutoDownloadEpisodes" v-model="cronExpression" />
+
+        <div v-if="enableAutoDownloadEpisodes" class="mt-6">
+          <widgets-podcast-episode-filter :include.sync="newEpisodeIncludePattern" :exclude.sync="newEpisodeExcludePattern" :feed-url="feedUrl" />
+        </div>
       </template>
     </div>
 
@@ -56,7 +60,9 @@ export default {
       enableAutoDownloadEpisodes: false,
       cronExpression: null,
       newMaxEpisodesToKeep: 0,
-      newMaxNewEpisodesToDownload: 0
+      newMaxNewEpisodesToDownload: 0,
+      newEpisodeIncludePattern: '',
+      newEpisodeExcludePattern: ''
     }
   },
   watch: {
@@ -103,8 +109,14 @@ export default {
     maxNewEpisodesToDownload() {
       return this.media.maxNewEpisodesToDownload
     },
+    episodeIncludePattern() {
+      return this.media.episodeIncludePattern || ''
+    },
+    episodeExcludePattern() {
+      return this.media.episodeExcludePattern || ''
+    },
     isUpdated() {
-      return this.autoDownloadSchedule !== this.cronExpression || this.autoDownloadEpisodes !== this.enableAutoDownloadEpisodes || this.maxEpisodesToKeep !== Number(this.newMaxEpisodesToKeep) || this.maxNewEpisodesToDownload !== Number(this.newMaxNewEpisodesToDownload)
+      return this.episodeIncludePattern !== this.newEpisodeIncludePattern.trim() || this.episodeExcludePattern !== this.newEpisodeExcludePattern.trim() || this.autoDownloadSchedule !== this.cronExpression || this.autoDownloadEpisodes !== this.enableAutoDownloadEpisodes || this.maxEpisodesToKeep !== Number(this.newMaxEpisodesToKeep) || this.maxNewEpisodesToDownload !== Number(this.newMaxNewEpisodesToDownload)
     }
   },
   methods: {
@@ -137,6 +149,16 @@ export default {
         this.$refs.maxEpisodesToDownloadInput.blur()
       }
 
+      const invalid = [this.newEpisodeIncludePattern, this.newEpisodeExcludePattern].some((p) => {
+        try {
+          if (p && p.trim()) new RegExp(p.trim(), 'i')
+          return false
+        } catch (error) {
+          return true
+        }
+      })
+      if (invalid) return this.$toast.error(this.$strings.LabelEpisodeFilterInvalid)
+
       const updatePayload = {
         autoDownloadEpisodes: this.enableAutoDownloadEpisodes
       }
@@ -151,6 +173,9 @@ export default {
       if (this.newMaxNewEpisodesToDownload !== this.maxNewEpisodesToDownload) {
         updatePayload.maxNewEpisodesToDownload = this.newMaxNewEpisodesToDownload
       }
+
+      if (this.newEpisodeIncludePattern.trim() !== this.episodeIncludePattern) updatePayload.episodeIncludePattern = this.newEpisodeIncludePattern.trim()
+      if (this.newEpisodeExcludePattern.trim() !== this.episodeExcludePattern) updatePayload.episodeExcludePattern = this.newEpisodeExcludePattern.trim()
 
       this.updateDetails(updatePayload)
     },
@@ -178,6 +203,8 @@ export default {
       this.cronExpression = this.autoDownloadSchedule
       this.newMaxEpisodesToKeep = this.maxEpisodesToKeep
       this.newMaxNewEpisodesToDownload = this.maxNewEpisodesToDownload
+      this.newEpisodeIncludePattern = this.episodeIncludePattern
+      this.newEpisodeExcludePattern = this.episodeExcludePattern
     }
   },
   mounted() {

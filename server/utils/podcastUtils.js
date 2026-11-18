@@ -322,6 +322,45 @@ function cleanPodcastJson(rssJson, excludeEpisodeMetadata) {
   return podcast
 }
 
+/**
+ * REJ1 patch: validate an episode title filter pattern (case-insensitive regex, max 300 chars).
+ * Returns null for empty/invalid input, otherwise the trimmed pattern.
+ * @param {*} value
+ * @returns {string|null}
+ */
+module.exports.normalizeEpisodeTitlePattern = (value) => {
+  if (typeof value !== 'string') return null
+  const pattern = value.trim()
+  if (!pattern || pattern.length > 300) return null
+  try {
+    new RegExp(pattern, 'i')
+  } catch (error) {
+    return null
+  }
+  return pattern
+}
+
+/**
+ * REJ1 patch: apply a podcast's include/exclude title patterns to a list of feed episodes.
+ * @template {{title?: string}} T
+ * @param {{episodeIncludePattern?: string|null, episodeExcludePattern?: string|null}} podcast
+ * @param {T[]} episodes
+ * @returns {T[]}
+ */
+module.exports.filterEpisodesByTitlePatterns = (podcast, episodes) => {
+  const include = module.exports.normalizeEpisodeTitlePattern(podcast?.episodeIncludePattern)
+  const exclude = module.exports.normalizeEpisodeTitlePattern(podcast?.episodeExcludePattern)
+  if (!include && !exclude) return episodes
+  const includeRe = include ? new RegExp(include, 'i') : null
+  const excludeRe = exclude ? new RegExp(exclude, 'i') : null
+  return episodes.filter((ep) => {
+    const title = ep.title || ''
+    if (includeRe && !includeRe.test(title)) return false
+    if (excludeRe && excludeRe.test(title)) return false
+    return true
+  })
+}
+
 module.exports.parsePodcastRssFeedXml = async (xml, excludeEpisodeMetadata = false, includeRaw = false) => {
   if (!xml) return null
   const json = await xmlToJSON(xml)
