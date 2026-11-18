@@ -12,4 +12,5 @@ Branch `rej1` = an upstream release tag + the commits below. Nothing else is cha
     git fetch upstream --tags
     git checkout -b rej1-vX.Y.Z vX.Y.Z
     git cherry-pick <patch commits from the previous rej1 branch>   # resolve conflicts if upstream moved
-    ./deploy/update.sh   # build, test against a DB copy, switch the service (see script header)
+    npm ci --omit=dev && (cd client && npm ci && NODE_OPTIONS=--openssl-legacy-provider npm run generate)
+    sudo bash rej1-ops/rej1-deploy.sh            # DB backup, new release dir, restart, health check, auto-rollback
