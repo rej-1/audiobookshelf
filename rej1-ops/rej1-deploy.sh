@@ -15,7 +15,7 @@ if [ "${1:-}" = "--rollback" ]; then
 fi
 
 [ -d "$SRC/client/dist" ] && [ -d "$SRC/node_modules" ] || { echo "build first: node_modules and client/dist missing"; exit 1; }
-SHA=$(git -C "$SRC" rev-parse --short HEAD); REL=$BASE/releases/$SHA
+SHA=$(git -c safe.directory="*" -C "$SRC" rev-parse --short HEAD); REL=$BASE/releases/$SHA
 install -d -m 0755 "$BASE/releases" "$BASE/backups"
 
 # 1. consistent DB backup before the new server touches (and possibly migrates) the database
