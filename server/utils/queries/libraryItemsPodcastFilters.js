@@ -6,6 +6,11 @@ const stringifySequelizeQuery = require('../stringifySequelizeQuery')
 
 const countCache = new Map()
 
+// REJ1 patch: the podcast Home shelves ("Newest Episodes", "Recently Added") only looked back 60 days,
+// so any library older than that showed "library is empty". Default to ~10 years; override with
+// PODCAST_HOME_RECENT_DAYS in the service environment.
+const HOME_RECENT_WINDOW_MS = (parseInt(process.env.PODCAST_HOME_RECENT_DAYS, 10) || 3650) * 24 * 60 * 60 * 1000
+
 module.exports = {
   /**
    * User permissions to restrict podcasts for explicit content & tags
@@ -170,7 +175,7 @@ module.exports = {
       ]
     } else if (filterGroup === 'recent') {
       libraryItemWhere['createdAt'] = {
-        [Sequelize.Op.gte]: new Date(new Date() - 60 * 24 * 60 * 60 * 1000) // 60 days ago
+        [Sequelize.Op.gte]: new Date(new Date() - HOME_RECENT_WINDOW_MS)
       }
     }
 
@@ -241,6 +246,57 @@ module.exports = {
   },
 
   /**
+   * REJ1 patch: "Discover" shelf for podcast libraries (the book equivalent is
+   * libraryItemsBookFilters.getDiscoverLibraryItems). Random shows this user has not started or finished.
+   * @param {string} libraryId
+   * @param {import('../../models/User')} user
+   * @param {string[]} include
+   * @param {number} limit
+   * @returns {Promise<{ libraryItems: import('../../models/LibraryItem')[], count: number }>}
+   */
+  async getDiscoverLibraryItems(libraryId, user, include, limit) {
+    const userPermissionPodcastWhere = this.getUserPermissionPodcastWhereQuery(user)
+    const notStarted = Sequelize.where(Sequelize.literal(`(SELECT COUNT(*) FROM mediaProgresses mp WHERE mp.podcastId = podcast.id AND mp.userId = :userId AND (mp.isFinished = 1 OR mp.currentTime > 0))`), 0)
+
+    const libraryItemIncludes = []
+    if (include.includes('rssfeed')) {
+      libraryItemIncludes.push({ model: Database.feedModel })
+    }
+
+    const findOptions = {
+      where: [notStarted, ...userPermissionPodcastWhere.podcastWhere],
+      replacements: { userId: user.id, ...userPermissionPodcastWhere.replacements },
+      include: [
+        {
+          model: Database.libraryItemModel,
+          required: true,
+          where: { libraryId },
+          include: libraryItemIncludes
+        }
+      ],
+      subQuery: false,
+      distinct: true,
+      limit,
+      order: Database.sequelize.random()
+    }
+
+    const { rows: podcasts, count } = await Database.podcastModel.findAndCountAll(findOptions)
+
+    const libraryItems = podcasts.map((podcastExpanded) => {
+      const libraryItem = podcastExpanded.libraryItem
+      const podcast = podcastExpanded
+      delete podcast.libraryItem
+      if (libraryItem.feeds?.length) {
+        libraryItem.rssFeed = libraryItem.feeds[0]
+      }
+      libraryItem.media = podcast
+      return libraryItem
+    })
+
+    return { libraryItems, count }
+  },
+
+  /**
    * Get podcast episodes filtered and sorted
    * @param {string} libraryId
    * @param {import('../../models/User')} user
@@ -294,7 +350,7 @@ module.exports = {
       }
     } else if (filterGroup === 'recent') {
       podcastEpisodeWhere['createdAt'] = {
-        [Sequelize.Op.gte]: new Date(new Date() - 60 * 24 * 60 * 60 * 1000) // 60 days ago
+        [Sequelize.Op.gte]: new Date(new Date() - HOME_RECENT_WINDOW_MS)
       }
     }
 

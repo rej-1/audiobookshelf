@@ -491,7 +491,7 @@ class LibraryItem extends Model {
       }
       Logger.debug(`Loaded ${newestAuthorsPayload.authors.length} of ${newestAuthorsPayload.count} authors for "Newest Authors" in ${newestAuthorsResult.elapsedSeconds}s`)
     } else if (library.isPodcast) {
-      const [newestEpisodesResult, mostRecentResult, mediaFinishedResult] = await Promise.all([timed(() => libraryFilters.getNewestPodcastEpisodes(library, user, limit)), timed(() => libraryFilters.getLibraryItemsMostRecentlyAdded(library, user, include, limit)), timed(() => libraryFilters.getMediaFinished(library, user, include, limit))])
+      const [newestEpisodesResult, mostRecentResult, discoverResult, mediaFinishedResult] = await Promise.all([timed(() => libraryFilters.getNewestPodcastEpisodes(library, user, limit)), timed(() => libraryFilters.getLibraryItemsMostRecentlyAdded(library, user, include, limit)), timed(() => libraryFilters.getLibraryItemsToDiscover(library, user, include, limit)), timed(() => libraryFilters.getMediaFinished(library, user, include, limit))])
 
       const newestEpisodesPayload = newestEpisodesResult.payload
       // "Newest Episodes" shelf
@@ -520,6 +520,20 @@ class LibraryItem extends Model {
         })
       }
       Logger.debug(`Loaded ${mostRecentPayload.libraryItems.length} of ${mostRecentPayload.count} items for "Recently Added" in ${mostRecentResult.elapsedSeconds}s`)
+
+      const discoverPayload = discoverResult.payload
+      // REJ1 patch: "Discover" shelf (shows the user has not started)
+      if (discoverPayload.libraryItems.length) {
+        shelves.push({
+          id: 'discover',
+          label: 'Discover',
+          labelStringKey: 'LabelDiscover',
+          type: library.mediaType,
+          entities: discoverPayload.libraryItems,
+          total: discoverPayload.count
+        })
+      }
+      Logger.debug(`Loaded ${discoverPayload.libraryItems.length} of ${discoverPayload.count} items for "Discover" in ${discoverResult.elapsedSeconds}s`)
 
       const mediaFinishedPayload = mediaFinishedResult.payload
       // "Listen Again" shelf

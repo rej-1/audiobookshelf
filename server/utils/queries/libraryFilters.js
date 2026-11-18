@@ -376,6 +376,20 @@ module.exports = {
    * @returns {Promise<{libraryItems:oldLibraryItem[], count:number}>}
    */
   async getLibraryItemsToDiscover(library, user, include, limit) {
+    if (library.mediaType === 'podcast') {
+      // REJ1 patch: Discover shelf for podcast libraries
+      const { libraryItems, count } = await libraryItemsPodcastFilters.getDiscoverLibraryItems(library.id, user, include, limit)
+      return {
+        libraryItems: libraryItems.map((li) => {
+          const oldLibraryItem = li.toOldJSONMinified()
+          if (li.rssFeed) {
+            oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
+          }
+          return oldLibraryItem
+        }),
+        count
+      }
+    }
     if (library.mediaType !== 'book') return { libraryItems: [], count: 0 }
 
     const { libraryItems, count } = await libraryItemsBookFilters.getDiscoverLibraryItems(library.id, user, include, limit)
