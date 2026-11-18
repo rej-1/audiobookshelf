@@ -19,7 +19,6 @@
 
         <p class="text-xs text-gray-300 italic">{{ Source }}</p>
       </div>
-      <a v-if="hasUpdate" :href="githubTagUrl" target="_blank" class="text-warning text-xs">Latest: {{ versionData.latestVersion }}</a>
     </div>
   </div>
 </template>

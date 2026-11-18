@@ -104,13 +104,7 @@
       </nuxt-link>
     </div>
 
-    <div class="w-full h-12 px-1 py-2 border-t border-black/20 bg-bg absolute left-0" :style="{ bottom: streamLibraryItem ? '224px' : '65px' }">
-      <p class="underline font-mono text-xs text-center text-gray-300 leading-3 mb-1 cursor-pointer" @click="clickChangelog">v{{ $config.version }}</p>
-      <a v-if="hasUpdate" :href="githubTagUrl" target="_blank" class="text-warning text-xxs text-center block leading-3">Update</a>
-      <p v-else class="text-xxs text-gray-400 leading-3 text-center italic">{{ Source }}</p>
-    </div>
-
-    <modals-changelog-view-modal v-model="showChangelogModal" :versionData="versionData" />
+    <!-- REJ1 patch: version/update footer removed (see REJ1-PATCHES.md); the button list now runs to the bottom -->
   </div>
 </template>
 
@@ -223,9 +217,9 @@ export default {
 
 <style>
 #siderail-buttons-container {
-  max-height: calc(100vh - 64px - 48px);
+  max-height: calc(100vh - 64px);
 }
 #siderail-buttons-container.player-open {
-  max-height: calc(100vh - 64px - 48px - 160px);
+  max-height: calc(100vh - 64px - 160px);
 }
 </style>

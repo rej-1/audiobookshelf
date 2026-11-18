@@ -7,6 +7,7 @@ Branch `rej1` = an upstream release tag + the commits below. Nothing else is cha
    (`PODCAST_HOME_RECENT_DAYS` env var overrides it).
 2. **Podcast Discover shelf** – podcast Home gets the same "Discover" shelf books have: random shows the
    user has not started or finished (`getDiscoverLibraryItems` in `libraryItemsPodcastFilters.js`).
+3. **No update notifier** – removed the version/"Update" footer from the left sidebar (the button list now runs to the bottom of the screen) and the orange "Latest: x" link in Settings. The version number is still shown in Settings.
 
 ## Updating to a new upstream release
 `rej1` is the default branch and carries our commits on top of upstream. To take a new release:
