@@ -31,7 +31,7 @@
 
         <widgets-cron-expression-builder ref="cronExpressionBuilder" v-if="enableAutoDownloadEpisodes" v-model="cronExpression" />
 
-        <div v-if="enableAutoDownloadEpisodes" class="mt-6">
+        <div class="mt-6">
           <widgets-podcast-episode-filter :include.sync="newEpisodeIncludePattern" :exclude.sync="newEpisodeExcludePattern" :format.sync="newEpisodeFormat" :feed-url="feedUrl" />
         </div>
       </template>

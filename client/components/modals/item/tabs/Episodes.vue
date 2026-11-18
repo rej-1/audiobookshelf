@@ -1,6 +1,14 @@
 <template>
   <div class="w-full h-full overflow-y-auto overflow-x-hidden px-4 py-6">
     <div class="w-full mb-4">
+      <!-- REJ1: filters and download format live here too, right next to "Check & Download", and are saved automatically before a check -->
+      <div v-if="userIsAdminOrUp && feedUrl" class="w-full mb-6 p-4 bg-primary/40 rounded">
+        <widgets-podcast-episode-filter :include.sync="newEpisodeIncludePattern" :exclude.sync="newEpisodeExcludePattern" :format.sync="newEpisodeFormat" :feed-url="feedUrl" />
+        <div class="flex justify-end mt-3">
+          <ui-btn small :disabled="!filtersUpdated" :loading="savingFilters" @click="saveFilters">{{ $strings.ButtonSave }}</ui-btn>
+        </div>
+      </div>
+
       <div v-if="userIsAdminOrUp" class="flex items-end justify-end mb-4">
         <ui-text-input-with-label ref="lastCheckInput" v-model="lastEpisodeCheckInput" :disabled="checkingNewEpisodes" type="datetime-local" :label="$strings.LabelLookForNewEpisodesAfterDate" class="max-w-xs mr-2" />
         <ui-text-input-with-label ref="maxEpisodesInput" v-model="maxEpisodesToDownload" :disabled="checkingNewEpisodes" type="number" :label="$strings.LabelLimit" class="w-16 mr-2" input-class="h-10">
@@ -56,10 +64,20 @@ export default {
     return {
       checkingNewEpisodes: false,
       lastEpisodeCheckInput: null,
-      maxEpisodesToDownload: 3
+      maxEpisodesToDownload: 3,
+      newEpisodeIncludePattern: '',
+      newEpisodeExcludePattern: '',
+      newEpisodeFormat: '',
+      savingFilters: false
     }
   },
   watch: {
+    libraryItem: {
+      immediate: true,
+      handler() {
+        this.initFilters()
+      }
+    },
     lastEpisodeCheck: {
       handler(newVal) {
         if (newVal) {
@@ -86,9 +104,47 @@ export default {
     },
     episodes() {
       return this.media.episodes || []
+    },
+    feedUrl() {
+      return this.media.metadata?.feedUrl || null
+    },
+    filtersUpdated() {
+      return (this.media.episodeIncludePattern || '') !== this.newEpisodeIncludePattern.trim() || (this.media.episodeExcludePattern || '') !== this.newEpisodeExcludePattern.trim() || (this.media.episodeFormat || '') !== this.newEpisodeFormat
     }
   },
   methods: {
+    initFilters() {
+      this.newEpisodeIncludePattern = this.media.episodeIncludePattern || ''
+      this.newEpisodeExcludePattern = this.media.episodeExcludePattern || ''
+      this.newEpisodeFormat = this.media.episodeFormat || ''
+    },
+    /** @returns {Promise<boolean>} true when nothing needed saving or the save worked */
+    async saveFilters() {
+      if (!this.filtersUpdated) return true
+      const invalid = [this.newEpisodeIncludePattern, this.newEpisodeExcludePattern].some((p) => {
+        try {
+          if (p && p.trim()) new RegExp(p.trim(), 'i')
+          return false
+        } catch (error) {
+          return true
+        }
+      })
+      if (invalid) {
+        this.$toast.error(this.$strings.LabelEpisodeFilterInvalid)
+        return false
+      }
+      this.savingFilters = true
+      const payload = { episodeIncludePattern: this.newEpisodeIncludePattern.trim(), episodeExcludePattern: this.newEpisodeExcludePattern.trim(), episodeFormat: this.newEpisodeFormat }
+      const result = await this.$axios.$patch(`/api/items/${this.libraryItemId}/media`, payload).catch((error) => {
+        console.error('Failed to update', error)
+        this.$toast.error(this.$strings.ToastFailedToUpdate)
+        return null
+      })
+      this.savingFilters = false
+      if (!result) return false
+      this.$toast.success(this.$strings.ToastItemDetailsUpdateSuccess)
+      return true
+    },
     async checkForNewEpisodes() {
       if (this.$refs.lastCheckInput) {
         this.$refs.lastCheckInput.blur()
@@ -96,6 +152,9 @@ export default {
       if (this.$refs.maxEpisodesInput) {
         this.$refs.maxEpisodesInput.blur()
       }
+
+      // REJ1: make sure the chosen filters and format are saved before downloading
+      if (!(await this.saveFilters())) return
 
       if (this.maxEpisodesToDownload < 0) {
         this.maxEpisodesToDownload = 3
