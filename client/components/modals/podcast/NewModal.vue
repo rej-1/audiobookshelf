@@ -29,7 +29,7 @@
           </div>
         </div>
         <div class="p-2">
-          <widgets-podcast-episode-filter :include.sync="podcast.episodeIncludePattern" :exclude.sync="podcast.episodeExcludePattern" :feed-titles="feedEpisodeTitles" />
+          <widgets-podcast-episode-filter :include.sync="podcast.episodeIncludePattern" :exclude.sync="podcast.episodeExcludePattern" :format.sync="podcast.episodeFormat" :feed-episodes="feedEpisodes" />
         </div>
         <div class="flex flex-wrap">
           <div class="md:w-1/4 p-2">
@@ -99,6 +99,7 @@ export default {
         autoDownloadEpisodes: false,
         episodeIncludePattern: '',
         episodeExcludePattern: '',
+        episodeFormat: '',
         language: '',
         explicit: false,
         type: ''
@@ -127,9 +128,10 @@ export default {
     title() {
       return this._podcastData.title
     },
-    feedEpisodeTitles() {
+    feedEpisodes() {
       const episodes = this.podcastFeedData?.episodes
-      return Array.isArray(episodes) ? episodes.map((e) => e.title || '') : null
+      if (!Array.isArray(episodes)) return null
+      return episodes.map((e) => ({ title: e.title || '', size: Number(e.enclosure?.length) || 0, seconds: Number(e.durationSeconds) || 0, publishedAt: e.publishedAt || 0 }))
     },
     currentLibrary() {
       return this.$store.getters['libraries/getCurrentLibrary']
@@ -216,7 +218,8 @@ export default {
           },
           autoDownloadEpisodes: this.podcast.autoDownloadEpisodes,
           episodeIncludePattern: this.podcast.episodeIncludePattern,
-          episodeExcludePattern: this.podcast.episodeExcludePattern
+          episodeExcludePattern: this.podcast.episodeExcludePattern,
+          episodeFormat: this.podcast.episodeFormat
         }
       }
       console.log('Podcast payload', podcastPayload)
@@ -253,6 +256,7 @@ export default {
       this.podcast.autoDownloadEpisodes = false
       this.podcast.episodeIncludePattern = ''
       this.podcast.episodeExcludePattern = ''
+      this.podcast.episodeFormat = ''
       this.podcast.type = this._podcastData.type || this.feedMetadata.type || 'episodic'
 
       this.podcast.explicit = this._podcastData.explicit || this.feedMetadata.explicit === 'yes' || this.feedMetadata.explicit == 'true'

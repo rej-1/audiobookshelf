@@ -152,7 +152,9 @@ module.exports.downloadPodcastEpisode = (podcastEpisodeDownload) => {
     /** @type {import('../libs/fluentFfmpeg/index').FfmpegCommand} */
     const ffmpeg = Ffmpeg(response.data)
     ffmpeg.addOption('-loglevel debug') // Debug logs printed on error
-    ffmpeg.outputOptions('-c:a', 'copy', '-map', '0:a', '-metadata', 'podcast=1')
+    // REJ1 patch: optionally convert to the podcast's chosen format in this same pass (default: copy the original audio)
+    const formatPreset = podcastEpisodeDownload.formatPreset
+    ffmpeg.outputOptions(...(formatPreset ? formatPreset.args : ['-c:a', 'copy']), '-map', '0:a', '-metadata', 'podcast=1')
 
     /** @type {import('../models/Podcast')} */
     const podcast = podcastEpisodeDownload.libraryItem.media

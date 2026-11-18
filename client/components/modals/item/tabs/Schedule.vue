@@ -32,7 +32,7 @@
         <widgets-cron-expression-builder ref="cronExpressionBuilder" v-if="enableAutoDownloadEpisodes" v-model="cronExpression" />
 
         <div v-if="enableAutoDownloadEpisodes" class="mt-6">
-          <widgets-podcast-episode-filter :include.sync="newEpisodeIncludePattern" :exclude.sync="newEpisodeExcludePattern" :feed-url="feedUrl" />
+          <widgets-podcast-episode-filter :include.sync="newEpisodeIncludePattern" :exclude.sync="newEpisodeExcludePattern" :format.sync="newEpisodeFormat" :feed-url="feedUrl" />
         </div>
       </template>
     </div>
@@ -62,7 +62,8 @@ export default {
       newMaxEpisodesToKeep: 0,
       newMaxNewEpisodesToDownload: 0,
       newEpisodeIncludePattern: '',
-      newEpisodeExcludePattern: ''
+      newEpisodeExcludePattern: '',
+      newEpisodeFormat: ''
     }
   },
   watch: {
@@ -115,8 +116,11 @@ export default {
     episodeExcludePattern() {
       return this.media.episodeExcludePattern || ''
     },
+    episodeFormat() {
+      return this.media.episodeFormat || ''
+    },
     isUpdated() {
-      return this.episodeIncludePattern !== this.newEpisodeIncludePattern.trim() || this.episodeExcludePattern !== this.newEpisodeExcludePattern.trim() || this.autoDownloadSchedule !== this.cronExpression || this.autoDownloadEpisodes !== this.enableAutoDownloadEpisodes || this.maxEpisodesToKeep !== Number(this.newMaxEpisodesToKeep) || this.maxNewEpisodesToDownload !== Number(this.newMaxNewEpisodesToDownload)
+      return this.episodeIncludePattern !== this.newEpisodeIncludePattern.trim() || this.episodeExcludePattern !== this.newEpisodeExcludePattern.trim() || this.episodeFormat !== this.newEpisodeFormat || this.autoDownloadSchedule !== this.cronExpression || this.autoDownloadEpisodes !== this.enableAutoDownloadEpisodes || this.maxEpisodesToKeep !== Number(this.newMaxEpisodesToKeep) || this.maxNewEpisodesToDownload !== Number(this.newMaxNewEpisodesToDownload)
     }
   },
   methods: {
@@ -177,6 +181,8 @@ export default {
       if (this.newEpisodeIncludePattern.trim() !== this.episodeIncludePattern) updatePayload.episodeIncludePattern = this.newEpisodeIncludePattern.trim()
       if (this.newEpisodeExcludePattern.trim() !== this.episodeExcludePattern) updatePayload.episodeExcludePattern = this.newEpisodeExcludePattern.trim()
 
+      if (this.newEpisodeFormat !== this.episodeFormat) updatePayload.episodeFormat = this.newEpisodeFormat
+
       this.updateDetails(updatePayload)
     },
     async updateDetails(updatePayload) {
@@ -205,6 +211,7 @@ export default {
       this.newMaxNewEpisodesToDownload = this.maxNewEpisodesToDownload
       this.newEpisodeIncludePattern = this.episodeIncludePattern
       this.newEpisodeExcludePattern = this.episodeExcludePattern
+      this.newEpisodeFormat = this.episodeFormat
     }
   },
   mounted() {

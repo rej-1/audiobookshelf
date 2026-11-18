@@ -4,6 +4,7 @@ const Logger = require('../Logger')
 const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 const htmlSanitizer = require('../utils/htmlSanitizer')
 const { normalizeEpisodeTitlePattern } = require('../utils/podcastUtils')
+const { normalizeEpisodeFormat } = require('../utils/podcastFormats')
 
 /**
  * @typedef PodcastExpandedProperties
@@ -58,6 +59,8 @@ class Podcast extends Model {
     this.episodeIncludePattern
     /** @type {string} REJ1: skip episodes whose title matches this regex (case-insensitive) */
     this.episodeExcludePattern
+    /** @type {string} REJ1: conversion preset id for newly downloaded episodes (null = keep original) */
+    this.episodeFormat
     /** @type {string} */
     this.coverPath
     /** @type {string[]} */
@@ -120,6 +123,7 @@ class Podcast extends Model {
         maxNewEpisodesToDownload: 3,
         episodeIncludePattern: normalizeEpisodeTitlePattern(payload.episodeIncludePattern),
         episodeExcludePattern: normalizeEpisodeTitlePattern(payload.episodeExcludePattern),
+        episodeFormat: normalizeEpisodeFormat(payload.episodeFormat),
         tags,
         genres
       },
@@ -160,6 +164,7 @@ class Podcast extends Model {
         maxNewEpisodesToDownload: DataTypes.INTEGER,
         episodeIncludePattern: DataTypes.TEXT,
         episodeExcludePattern: DataTypes.TEXT,
+        episodeFormat: DataTypes.STRING,
         coverPath: DataTypes.STRING,
         tags: DataTypes.JSON,
         genres: DataTypes.JSON,
@@ -302,6 +307,17 @@ class Podcast extends Model {
       }
       if (newValue !== (this[key] || null)) {
         this[key] = newValue
+        hasUpdates = true
+      }
+    }
+
+    // REJ1: conversion format ('' or 'original' = keep original; unknown ids are ignored)
+    if (typeof payload.episodeFormat === 'string') {
+      const newFormat = payload.episodeFormat === '' || payload.episodeFormat === 'original' ? null : normalizeEpisodeFormat(payload.episodeFormat)
+      if (payload.episodeFormat !== '' && payload.episodeFormat !== 'original' && newFormat === null) {
+        Logger.warn(`[Podcast] Ignoring invalid episodeFormat for "${this.title}"`)
+      } else if (newFormat !== (this.episodeFormat || null)) {
+        this.episodeFormat = newFormat
         hasUpdates = true
       }
     }
@@ -472,7 +488,8 @@ class Podcast extends Model {
       maxEpisodesToKeep: this.maxEpisodesToKeep,
       maxNewEpisodesToDownload: this.maxNewEpisodesToDownload,
       episodeIncludePattern: this.episodeIncludePattern || null,
-      episodeExcludePattern: this.episodeExcludePattern || null
+      episodeExcludePattern: this.episodeExcludePattern || null,
+      episodeFormat: this.episodeFormat || null
     }
   }
 
@@ -496,6 +513,7 @@ class Podcast extends Model {
       maxNewEpisodesToDownload: this.maxNewEpisodesToDownload,
       episodeIncludePattern: this.episodeIncludePattern || null,
       episodeExcludePattern: this.episodeExcludePattern || null,
+      episodeFormat: this.episodeFormat || null,
       size: this.size
     }
   }

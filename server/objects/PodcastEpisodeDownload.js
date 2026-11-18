@@ -2,6 +2,7 @@ const Path = require('path')
 const uuidv4 = require('uuid').v4
 const { sanitizeFilename, filePathToPOSIX } = require('../utils/fileUtils')
 const globals = require('../utils/globals')
+const { resolveFormatPreset } = require('../utils/podcastFormats')
 
 class PodcastEpisodeDownload {
   constructor() {
@@ -54,7 +55,13 @@ class PodcastEpisodeDownload {
     const cleanUrl = this.url.split('?')[0] // Remove query string
     return Path.extname(cleanUrl).substring(1).toLowerCase()
   }
+  /** REJ1: conversion preset for this episode (null = keep original audio) */
+  get formatPreset() {
+    return resolveFormatPreset(this.libraryItem?.media?.episodeFormat, this.rssPodcastEpisode)
+  }
   get fileExtension() {
+    const preset = this.formatPreset
+    if (preset) return preset.ext
     const extname = this.urlFileExtension
     if (globals.SupportedAudioTypes.includes(extname)) return extname
     return 'mp3'
@@ -116,9 +123,9 @@ class PodcastEpisodeDownload {
       this.url = encodeURI(url)
     }
 
+    this.libraryItem = libraryItem // REJ1: set before building the filename, the extension depends on the podcast's format
     this.targetFilename = this.getSanitizedFilename(this.rssPodcastEpisode.title || '')
 
-    this.libraryItem = libraryItem
     this.isAutoDownload = isAutoDownload
     this.createdAt = Date.now()
     this.libraryId = libraryId

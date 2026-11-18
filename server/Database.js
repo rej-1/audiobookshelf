@@ -313,7 +313,7 @@ class Database {
    */
   async ensureRej1Columns() {
     const queryInterface = this.sequelize.getQueryInterface()
-    const columns = { podcasts: ['episodeIncludePattern', 'episodeExcludePattern'] }
+    const columns = { podcasts: ['episodeIncludePattern', 'episodeExcludePattern', 'episodeFormat'] }
     for (const [table, names] of Object.entries(columns)) {
       const description = await queryInterface.describeTable(table)
       for (const name of names) {
