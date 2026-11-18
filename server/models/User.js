@@ -189,7 +189,7 @@ class User extends Model {
    * @param {import('../Auth')} auth
    * @returns {Promise<User>}
    */
-  static async createRootUser(username, pash, auth) {
+  static async createRootUser(username, pash, auth, transaction = null) {
     const userId = uuidv4()
 
     const token = auth.generateAccessToken({ id: userId, username })
@@ -207,7 +207,7 @@ class User extends Model {
         seriesHideFromContinueListening: []
       }
     }
-    return this.create(newUser)
+    return this.create(newUser, { transaction })
   }
 
   /**
@@ -743,10 +743,10 @@ class User extends Model {
           },
           {
             model: this.sequelize.models.podcast,
-            attributes: ['id', 'title'],
+            attributes: ['id', 'title', 'explicit', 'tags'],
             include: {
               model: this.sequelize.models.libraryItem,
-              attributes: ['id']
+              attributes: ['id', 'libraryId', 'mediaType']
             }
           }
         ]
@@ -758,15 +758,38 @@ class User extends Model {
           statusCode: 404
         }
       }
+      const episodeLibraryItem = podcastEpisode.podcast?.libraryItem
+      if (!episodeLibraryItem) {
+        Logger.error(`[User] createUpdateMediaProgress: library item for episode ${progressPayload.episodeId} not found`)
+        return {
+          error: 'Library item not found',
+          statusCode: 404
+        }
+      }
+      if (progressPayload.libraryItemId && episodeLibraryItem.id !== progressPayload.libraryItemId) {
+        Logger.error(`[User] createUpdateMediaProgress: episode ${progressPayload.episodeId} does not belong to library item ${progressPayload.libraryItemId}`)
+        return {
+          error: 'Episode does not belong to library item',
+          statusCode: 400
+        }
+      }
+      episodeLibraryItem.media = podcastEpisode.podcast
+      if (!this.checkCanAccessLibraryItem(episodeLibraryItem)) {
+        Logger.error(`[User] createUpdateMediaProgress: user "${this.username}" attempted to update progress for inaccessible library item "${episodeLibraryItem.id}"`)
+        return {
+          error: 'User does not have access to this library item',
+          statusCode: 403
+        }
+      }
       mediaItemId = podcastEpisode.id
       mediaProgress = podcastEpisode.mediaProgresses?.[0]
       podcastId = podcastEpisode.podcastId
     } else {
       const libraryItem = await this.sequelize.models.libraryItem.findByPk(progressPayload.libraryItemId, {
-        attributes: ['id', 'mediaId', 'mediaType'],
+        attributes: ['id', 'libraryId', 'mediaId', 'mediaType'],
         include: {
           model: this.sequelize.models.book,
-          attributes: ['id', 'title'],
+          attributes: ['id', 'title', 'explicit', 'tags'],
           required: false,
           include: {
             model: this.sequelize.models.mediaProgress,
@@ -786,6 +809,12 @@ class User extends Model {
         return {
           error: 'Library item is not a book',
           statusCode: 400
+        }
+      } else if (!this.checkCanAccessLibraryItem(libraryItem)) {
+        Logger.error(`[User] createUpdateMediaProgress: user "${this.username}" attempted to update progress for inaccessible library item "${libraryItem.id}"`)
+        return {
+          error: 'User does not have access to this library item',
+          statusCode: 403
         }
       }
 
