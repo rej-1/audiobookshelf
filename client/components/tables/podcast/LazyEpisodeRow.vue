@@ -3,6 +3,7 @@
     <div class="flex" @click="clickedEpisode">
       <div class="grow">
         <div dir="auto" class="flex items-center">
+          <span v-if="isToday" class="mr-2 px-1.5 py-0.5 rounded bg-success text-black text-xs font-bold uppercase">{{ $strings.LabelToday }}</span>
           <span class="text-sm font-semibold">{{ episodeTitle }}</span>
           <widgets-podcast-type-indicator :type="episodeType" />
         </div>
@@ -72,7 +73,8 @@ export default {
       type: Object,
       default: () => null
     },
-    sortKey: String
+    sortKey: String,
+    isToday: Boolean
   },
   data() {
     return {

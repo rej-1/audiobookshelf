@@ -3,6 +3,7 @@ const Database = require('../../Database')
 const Logger = require('../../Logger')
 const { profile } = require('../../utils/profiler')
 const stringifySequelizeQuery = require('../stringifySequelizeQuery')
+const { todayMonthDay } = require('../yearlyPlan')
 
 const countCache = new Map()
 
@@ -351,6 +352,9 @@ module.exports = {
       } else if (filterValue === 'finished') {
         podcastEpisodeWhere['$mediaProgresses.isFinished$'] = true
       }
+    } else if (filterGroup === 'todays-reading') {
+      // REJ1: episodes of yearly-reading-plan podcasts whose publish month-day is today's (Feb 29 -> Feb 28)
+      podcastEpisodeWhere = Sequelize.and(Sequelize.where(Sequelize.fn('strftime', '%m-%d', Sequelize.col('podcastEpisode.publishedAt')), todayMonthDay()), { '$podcast.isYearlyPlan$': true })
     } else if (filterGroup === 'recent') {
       podcastEpisodeWhere['createdAt'] = {
         [Sequelize.Op.gte]: new Date(new Date() - HOME_RECENT_WINDOW_MS)

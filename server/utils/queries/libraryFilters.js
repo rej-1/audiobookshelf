@@ -432,6 +432,27 @@ module.exports = {
   },
 
   /**
+   * REJ1 patch: today's episode of every yearly-reading-plan podcast in a podcast library
+   * @param {import('../../models/Library')} library
+   * @param {import('../../models/User')} user
+   * @param {number} limit
+   * @returns {Promise<{libraryItems:oldLibraryItem[], count:number}>}
+   */
+  async getTodaysReadingEpisodes(library, user, limit) {
+    if (library.mediaType !== 'podcast') return { libraryItems: [], count: 0 }
+
+    const { libraryItems, count } = await libraryItemsPodcastFilters.getFilteredPodcastEpisodes(library.id, user, 'todays-reading', null, 'createdAt', true, limit, 0)
+    return {
+      count,
+      libraryItems: libraryItems.map((li) => {
+        const oldLibraryItem = li.toOldJSONMinified()
+        oldLibraryItem.recentEpisode = li.recentEpisode
+        return oldLibraryItem
+      })
+    }
+  },
+
+  /**
    * Get library items for an author, optional use user permissions
    * @param {import('../../models/Author')} author
    * @param {import('../../models/User')} user

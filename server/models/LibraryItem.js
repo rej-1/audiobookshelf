@@ -507,6 +507,19 @@ class LibraryItem extends Model {
       }
       Logger.debug(`Loaded ${newestEpisodesPayload.libraryItems.length} of ${newestEpisodesPayload.count} episodes for "Newest Episodes" in ${newestEpisodesResult.elapsedSeconds}s`)
 
+      // REJ1 patch: "Today's Reading" shelf, first on the page (today's episode of each yearly-reading-plan podcast)
+      const todaysReadingResult = await timed(() => libraryFilters.getTodaysReadingEpisodes(library, user, limit))
+      if (todaysReadingResult.payload.libraryItems.length) {
+        shelves.unshift({
+          id: 'todays-reading',
+          label: "Today's Reading",
+          labelStringKey: 'LabelTodaysReading',
+          type: 'episode',
+          entities: todaysReadingResult.payload.libraryItems,
+          total: todaysReadingResult.payload.count
+        })
+      }
+
       const mostRecentPayload = mostRecentResult.payload
       // "Recently Added" shelf
       if (mostRecentPayload.libraryItems.length) {

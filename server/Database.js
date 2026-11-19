@@ -313,13 +313,20 @@ class Database {
    */
   async ensureRej1Columns() {
     const queryInterface = this.sequelize.getQueryInterface()
-    const columns = { podcasts: ['episodeIncludePattern', 'episodeExcludePattern', 'episodeFormat'] }
-    for (const [table, names] of Object.entries(columns)) {
+    const columns = {
+      podcasts: {
+        episodeIncludePattern: Sequelize.DataTypes.TEXT,
+        episodeExcludePattern: Sequelize.DataTypes.TEXT,
+        episodeFormat: Sequelize.DataTypes.TEXT,
+        isYearlyPlan: Sequelize.DataTypes.BOOLEAN
+      }
+    }
+    for (const [table, types] of Object.entries(columns)) {
       const description = await queryInterface.describeTable(table)
-      for (const name of names) {
+      for (const [name, type] of Object.entries(types)) {
         if (description[name]) continue
         Logger.info(`[Database] Adding fork column ${table}.${name}`)
-        await queryInterface.addColumn(table, name, { type: Sequelize.DataTypes.TEXT, allowNull: true })
+        await queryInterface.addColumn(table, name, { type, allowNull: true })
       }
     }
   }

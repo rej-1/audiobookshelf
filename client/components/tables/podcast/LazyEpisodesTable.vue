@@ -113,6 +113,11 @@ export default {
           value: 'publishedAt'
         },
         {
+          // REJ1: calendar order starting at today's date (for yearly reading plans)
+          text: this.$strings.LabelToday,
+          value: 'today'
+        },
+        {
           text: this.$strings.LabelTitle,
           value: 'title'
         },
@@ -159,6 +164,9 @@ export default {
     media() {
       return this.libraryItem.media || {}
     },
+    isYearlyPlan() {
+      return !!this.media.isYearlyPlan
+    },
     mediaMetadata() {
       return this.media.metadata || {}
     },
@@ -175,6 +183,14 @@ export default {
           return episodeProgress && !episodeProgress.isFinished
         })
         .sort((a, b) => {
+          // REJ1: "Today" sort. Ascending: today, tomorrow, ... wrapping around the year. Descending: today, yesterday, ...
+          if (this.sortKey === 'today') {
+            const aOffset = this.yearlyPlanOffset(a)
+            const bOffset = this.yearlyPlanOffset(b)
+            if (aOffset !== bOffset) return aOffset - bOffset
+            return (a.publishedAt || 0) - (b.publishedAt || 0)
+          }
+
           // Swap values if sort descending
           if (this.sortDesc) {
             const temp = a
@@ -474,7 +490,8 @@ export default {
             index,
             libraryItemId: this.libraryItem.id,
             episode: this.episodesList[index],
-            sortKey: this.sortKey
+            sortKey: this.sortKey,
+            isToday: this.isTodaysEpisode(this.episodesList[index])
           },
           created() {
             this.$on('selected', (payload) => {
@@ -553,10 +570,39 @@ export default {
         itemPageWrapper.removeEventListener('scroll', this.scroll)
       }
     },
+    // REJ1: day of year (1-365, non-leap calendar; Feb 29 counts as Feb 28). Keep in sync with server/utils/yearlyPlan.js
+    yearlyPlanDayOfYear(month, day) {
+      const daysBeforeMonth = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+      if (month === 2 && day === 29) day = 28
+      return daysBeforeMonth[month - 1] + day
+    },
+    // Episode's calendar day: UTC month/day of its publish date. Today: the viewer's local date.
+    yearlyPlanEpisodeDay(episode) {
+      if (!episode?.publishedAt) return null
+      const d = new Date(episode.publishedAt)
+      return this.yearlyPlanDayOfYear(d.getUTCMonth() + 1, d.getUTCDate())
+    },
+    yearlyPlanTodayDay() {
+      const now = new Date()
+      return this.yearlyPlanDayOfYear(now.getMonth() + 1, now.getDate())
+    },
+    yearlyPlanOffset(episode) {
+      const epDay = this.yearlyPlanEpisodeDay(episode)
+      if (epDay === null) return 9999 // no publish date: last
+      const today = this.yearlyPlanTodayDay()
+      return this.sortDesc ? (today - epDay + 365) % 365 : (epDay - today + 365) % 365
+    },
+    isTodaysEpisode(episode) {
+      return this.isYearlyPlan && this.yearlyPlanEpisodeDay(episode) === this.yearlyPlanTodayDay()
+    },
+    sortStorageKey() {
+      // Yearly reading plans remember their sort per podcast (default: Today); other podcasts share one setting as before
+      return this.isYearlyPlan ? `podcastEpisodesSortBy:${this.libraryItem.id}` : 'podcastEpisodesSortBy'
+    },
     filterSortChanged() {
       // Save filterKey and sortKey to local storage
       localStorage.setItem('podcastEpisodesFilter', this.filterKey)
-      localStorage.setItem('podcastEpisodesSortBy', this.sortKey + (this.sortDesc ? '-desc' : ''))
+      localStorage.setItem(this.sortStorageKey(), this.sortKey + (this.sortDesc ? '-desc' : ''))
 
       this.init()
     },
@@ -594,7 +640,7 @@ export default {
   },
   mounted() {
     this.filterKey = localStorage.getItem('podcastEpisodesFilter') || 'incomplete'
-    const sortBy = localStorage.getItem('podcastEpisodesSortBy') || 'publishedAt-desc'
+    const sortBy = localStorage.getItem(this.sortStorageKey()) || (this.isYearlyPlan ? 'today' : 'publishedAt-desc')
     this.sortKey = sortBy.split('-')[0]
     this.sortDesc = sortBy.split('-')[1] === 'desc'
 

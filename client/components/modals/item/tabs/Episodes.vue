@@ -4,6 +4,10 @@
       <!-- REJ1: filters and download format live here too, right next to "Check & Download", and are saved automatically before a check -->
       <div v-if="userIsAdminOrUp && feedUrl" class="w-full mb-6 p-4 bg-primary/40 rounded">
         <widgets-podcast-episode-filter :include.sync="newEpisodeIncludePattern" :exclude.sync="newEpisodeExcludePattern" :format.sync="newEpisodeFormat" :feed-url="feedUrl" />
+        <div class="mt-4">
+          <ui-checkbox v-model="newIsYearlyPlan" :label="$strings.LabelYearlyReadingPlan" checkbox-bg="bg" label-class="pl-2 text-base font-semibold" />
+          <p class="text-xs md:text-sm text-gray-300 mt-1">{{ $strings.LabelYearlyReadingPlanHelp }}</p>
+        </div>
         <div class="flex justify-end mt-3">
           <ui-btn small :disabled="!filtersUpdated" :loading="savingFilters" @click="saveFilters">{{ $strings.ButtonSave }}</ui-btn>
         </div>
@@ -70,6 +74,7 @@ export default {
       newEpisodeIncludePattern: '',
       newEpisodeExcludePattern: '',
       newEpisodeFormat: '',
+      newIsYearlyPlan: false,
       savingFilters: false
     }
   },
@@ -112,7 +117,7 @@ export default {
       return this.media.metadata?.feedUrl || null
     },
     filtersUpdated() {
-      return (this.media.episodeIncludePattern || '') !== this.newEpisodeIncludePattern.trim() || (this.media.episodeExcludePattern || '') !== this.newEpisodeExcludePattern.trim() || (this.media.episodeFormat || '') !== this.newEpisodeFormat
+      return (this.media.episodeIncludePattern || '') !== this.newEpisodeIncludePattern.trim() || (this.media.episodeExcludePattern || '') !== this.newEpisodeExcludePattern.trim() || (this.media.episodeFormat || '') !== this.newEpisodeFormat || !!this.media.isYearlyPlan !== this.newIsYearlyPlan
     }
   },
   methods: {
@@ -120,6 +125,7 @@ export default {
       this.newEpisodeIncludePattern = this.media.episodeIncludePattern || ''
       this.newEpisodeExcludePattern = this.media.episodeExcludePattern || ''
       this.newEpisodeFormat = this.media.episodeFormat || ''
+      this.newIsYearlyPlan = !!this.media.isYearlyPlan
     },
     /** @returns {Promise<boolean>} true when nothing needed saving or the save worked */
     async saveFilters() {
@@ -137,7 +143,7 @@ export default {
         return false
       }
       this.savingFilters = true
-      const payload = { episodeIncludePattern: this.newEpisodeIncludePattern.trim(), episodeExcludePattern: this.newEpisodeExcludePattern.trim(), episodeFormat: this.newEpisodeFormat }
+      const payload = { episodeIncludePattern: this.newEpisodeIncludePattern.trim(), episodeExcludePattern: this.newEpisodeExcludePattern.trim(), episodeFormat: this.newEpisodeFormat, isYearlyPlan: this.newIsYearlyPlan }
       const result = await this.$axios.$patch(`/api/items/${this.libraryItemId}/media`, payload).catch((error) => {
         console.error('Failed to update', error)
         this.$toast.error(this.$strings.ToastFailedToUpdate)

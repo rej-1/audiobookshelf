@@ -59,6 +59,8 @@ class Podcast extends Model {
     this.episodeIncludePattern
     /** @type {string} REJ1: skip episodes whose title matches this regex (case-insensitive) */
     this.episodeExcludePattern
+    /** @type {boolean} REJ1: yearly reading plan (one episode per calendar date): default sort "Today" and Home shelf */
+    this.isYearlyPlan
     /** @type {string} REJ1: conversion preset id for newly downloaded episodes (null = keep original) */
     this.episodeFormat
     /** @type {string} */
@@ -165,6 +167,7 @@ class Podcast extends Model {
         episodeIncludePattern: DataTypes.TEXT,
         episodeExcludePattern: DataTypes.TEXT,
         episodeFormat: DataTypes.STRING,
+        isYearlyPlan: { type: DataTypes.BOOLEAN, defaultValue: false },
         coverPath: DataTypes.STRING,
         tags: DataTypes.JSON,
         genres: DataTypes.JSON,
@@ -309,6 +312,12 @@ class Podcast extends Model {
         this[key] = newValue
         hasUpdates = true
       }
+    }
+
+    // REJ1: yearly reading plan flag
+    if (typeof payload.isYearlyPlan === 'boolean' && payload.isYearlyPlan !== !!this.isYearlyPlan) {
+      this.isYearlyPlan = payload.isYearlyPlan
+      hasUpdates = true
     }
 
     // REJ1: conversion format ('' or 'original' = keep original; unknown ids are ignored)
@@ -489,7 +498,8 @@ class Podcast extends Model {
       maxNewEpisodesToDownload: this.maxNewEpisodesToDownload,
       episodeIncludePattern: this.episodeIncludePattern || null,
       episodeExcludePattern: this.episodeExcludePattern || null,
-      episodeFormat: this.episodeFormat || null
+      episodeFormat: this.episodeFormat || null,
+      isYearlyPlan: !!this.isYearlyPlan
     }
   }
 
@@ -514,6 +524,7 @@ class Podcast extends Model {
       episodeIncludePattern: this.episodeIncludePattern || null,
       episodeExcludePattern: this.episodeExcludePattern || null,
       episodeFormat: this.episodeFormat || null,
+      isYearlyPlan: !!this.isYearlyPlan,
       size: this.size
     }
   }
