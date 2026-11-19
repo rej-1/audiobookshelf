@@ -467,6 +467,7 @@
   "LabelLogLevelInfo": "Info",
   "LabelLogLevelWarn": "Warn",
   "LabelLookForNewEpisodesAfterDate": "Look for new episodes after this date",
+  "LabelLookForNewEpisodesBeforeDate": "and before (optional)",
   "LabelLowestPriority": "Lowest Priority",
   "LabelMatchConfidence": "Confidence",
   "LabelMatchExistingUsersBy": "Match existing users by",

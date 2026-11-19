@@ -294,7 +294,10 @@ class PodcastController {
 
     const maxEpisodesToDownload = !isNaN(req.query.limit) ? Number(req.query.limit) : 3
 
-    const newEpisodes = await this.podcastManager.checkAndDownloadNewEpisodes(req.libraryItem, maxEpisodesToDownload)
+    // REJ1: optional upper bound (ms timestamp). With it, the window [lastEpisodeCheck, before] is downloaded oldest first.
+    const beforeTimestamp = Number(req.query.before) > 0 ? Number(req.query.before) : null
+
+    const newEpisodes = await this.podcastManager.checkAndDownloadNewEpisodes(req.libraryItem, maxEpisodesToDownload, beforeTimestamp)
     res.json({
       episodes: newEpisodes || []
     })

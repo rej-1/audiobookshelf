@@ -377,7 +377,7 @@ class PodcastManager {
    * @param {number} maxNewEpisodes
    * @returns {Promise<import('../utils/podcastUtils').RssPodcastEpisode[]|null>}
    */
-  async checkPodcastForNewEpisodes(podcastLibraryItem, dateToCheckForEpisodesAfter, maxNewEpisodes = 3) {
+  async checkPodcastForNewEpisodes(podcastLibraryItem, dateToCheckForEpisodesAfter, maxNewEpisodes = 3, beforeTimestamp = null) {
     if (!podcastLibraryItem.media.feedURL) {
       Logger.error(`[PodcastManager] checkPodcastForNewEpisodes no feed url for ${podcastLibraryItem.media.title} (ID: ${podcastLibraryItem.id})`)
       return null
@@ -406,6 +406,11 @@ class PodcastManager {
     newEpisodes = filterEpisodesByTitlePatterns(podcastLibraryItem.media, newEpisodes)
     if (newEpisodes.length !== numBeforeTitleFilter) Logger.info(`[PodcastManager] Title filters kept ${newEpisodes.length} of ${numBeforeTitleFilter} new episodes for \"${podcastLibraryItem.media.title}\"`)
 
+    // REJ1: optional upper bound; a bounded window is taken oldest first so a limit never drops the start of the window
+    if (beforeTimestamp) {
+      newEpisodes = newEpisodes.filter((ep) => ep.publishedAt <= beforeTimestamp).sort((a, b) => a.publishedAt - b.publishedAt)
+    }
+
     if (maxNewEpisodes > 0) {
       newEpisodes = newEpisodes.slice(0, maxNewEpisodes)
     }
@@ -419,12 +424,12 @@ class PodcastManager {
    * @param {*} maxEpisodesToDownload
    * @returns {Promise<import('../utils/podcastUtils').RssPodcastEpisode[]>}
    */
-  async checkAndDownloadNewEpisodes(libraryItem, maxEpisodesToDownload) {
+  async checkAndDownloadNewEpisodes(libraryItem, maxEpisodesToDownload, beforeTimestamp = null) {
     const lastEpisodeCheck = libraryItem.media.lastEpisodeCheck?.valueOf() || 0
     const lastEpisodeCheckDate = lastEpisodeCheck > 0 ? libraryItem.media.lastEpisodeCheck : 'Never'
     Logger.info(`[PodcastManager] checkAndDownloadNewEpisodes for "${libraryItem.media.title}" - Last episode check: ${lastEpisodeCheckDate}`)
 
-    const newEpisodes = await this.checkPodcastForNewEpisodes(libraryItem, lastEpisodeCheck, maxEpisodesToDownload)
+    const newEpisodes = await this.checkPodcastForNewEpisodes(libraryItem, lastEpisodeCheck, maxEpisodesToDownload, beforeTimestamp)
     if (newEpisodes?.length) {
       Logger.info(`[PodcastManager] Found ${newEpisodes.length} new episodes for podcast "${libraryItem.media.title}" - starting download`)
       this.downloadPodcastEpisodes(libraryItem, newEpisodes, false)
@@ -432,7 +437,8 @@ class PodcastManager {
       Logger.info(`[PodcastManager] No new episodes found for podcast "${libraryItem.media.title}"`)
     }
 
-    libraryItem.media.lastEpisodeCheck = new Date()
+    // REJ1: a bounded ("before") manual check keeps the date the user set instead of stamping it with the current time
+    if (!beforeTimestamp) libraryItem.media.lastEpisodeCheck = new Date()
     await libraryItem.media.save()
 
     libraryItem.changed('updatedAt', true)

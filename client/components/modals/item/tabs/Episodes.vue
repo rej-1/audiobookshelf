@@ -11,6 +11,7 @@
 
       <div v-if="userIsAdminOrUp" class="flex items-end justify-end mb-4">
         <ui-text-input-with-label ref="lastCheckInput" v-model="lastEpisodeCheckInput" :disabled="checkingNewEpisodes" type="datetime-local" :label="$strings.LabelLookForNewEpisodesAfterDate" class="max-w-xs mr-2" />
+        <ui-text-input-with-label v-model="beforeEpisodeInput" :disabled="checkingNewEpisodes" type="datetime-local" :label="$strings.LabelLookForNewEpisodesBeforeDate" class="max-w-xs mr-2" />
         <ui-text-input-with-label ref="maxEpisodesInput" v-model="maxEpisodesToDownload" :disabled="checkingNewEpisodes" type="number" :label="$strings.LabelLimit" class="w-16 mr-2" input-class="h-10">
           <div class="flex -mb-0.5">
             <p class="px-1 text-sm font-semibold" :class="{ 'text-gray-400': checkingNewEpisodes }">{{ $strings.LabelLimit }}</p>
@@ -64,6 +65,7 @@ export default {
     return {
       checkingNewEpisodes: false,
       lastEpisodeCheckInput: null,
+      beforeEpisodeInput: '',
       maxEpisodesToDownload: 3,
       newEpisodeIncludePattern: '',
       newEpisodeExcludePattern: '',
@@ -80,7 +82,8 @@ export default {
     },
     lastEpisodeCheck: {
       handler(newVal) {
-        if (newVal) {
+        // REJ1: only fill the box when it is empty; never overwrite what the user typed (a check stamps "now" on the server)
+        if (newVal && !this.lastEpisodeCheckInput) {
           this.setLastEpisodeCheckInput()
         }
       }
@@ -164,6 +167,13 @@ export default {
 
       this.checkingNewEpisodes = true
       const lastEpisodeCheck = new Date(this.lastEpisodeCheckInput).valueOf()
+      const beforeTs = this.beforeEpisodeInput ? new Date(this.beforeEpisodeInput).valueOf() : 0
+      if (this.beforeEpisodeInput && (!beforeTs || beforeTs <= lastEpisodeCheck)) {
+        this.$toast.error(this.$strings.ToastDateTimeInvalidOrIncomplete)
+        this.checkingNewEpisodes = false
+        return false
+      }
+      const beforeQuery = beforeTs ? `&before=${beforeTs}` : ''
 
       // If last episode check changed then update it first
       if (lastEpisodeCheck && lastEpisodeCheck !== this.lastEpisodeCheck) {
@@ -179,7 +189,7 @@ export default {
       }
 
       this.$axios
-        .$get(`/api/podcasts/${this.libraryItemId}/checknew?limit=${this.maxEpisodesToDownload}`)
+        .$get(`/api/podcasts/${this.libraryItemId}/checknew?limit=${this.maxEpisodesToDownload}${beforeQuery}`)
         .then((response) => {
           if (response.episodes && response.episodes.length) {
             console.log('New episodes', response.episodes.length)
